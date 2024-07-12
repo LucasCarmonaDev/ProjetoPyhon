@@ -1,0 +1,54 @@
+import pandas as pd
+
+# Definir caminhos dos arquivos
+uem_path = r'C:\Documents\Machine qtd\relatorio_uem.csv'
+cs_path = r'C:\Documents\Machine qtd\relatorio_cs.csv'
+output_path = r'C:\Documents\Machine qtd\Comparison_Result.csv'
+
+# Função para carregar CSV com tratamento de erros
+def load_csv(file_path):
+    try:
+        return pd.read_csv(file_path, delimiter=';')
+    except pd.errors.ParserError as e:
+        print(f"Erro ao carregar o arquivo {file_path}: {e}")
+        return pd.DataFrame()
+
+# Carregar os arquivos CSV
+uem_df = load_csv(uem_path)
+cs_df = load_csv(cs_path)
+
+# Verificar se os DataFrames estão vazios
+if uem_df.empty or cs_df.empty:
+    print("Erro ao carregar um dos arquivos CSV. Verifique os arquivos e tente novamente.")
+    exit()
+
+# Imprimir as colunas presentes em cada DataFrame (para depuração)
+print("Colunas presentes no DataFrame do UEM:")
+print(uem_df.columns.tolist())
+
+print("\nColunas presentes no DataFrame do Crowdstrike:")
+print(cs_df.columns.tolist())
+
+# Normalizar identificadores (por exemplo, 'Hostname' e 'Username')
+if 'Hostname' in uem_df.columns and 'Username' in uem_df.columns:
+    uem_df['Hostname'] = uem_df['Hostname'].str.strip().str.lower()
+    uem_df['Username'] = uem_df['Username'].str.strip().str.lower()
+
+if 'Hostname' in cs_df.columns and 'Username' in cs_df.columns:
+    cs_df['Hostname'] = cs_df['Hostname'].str.strip().str.lower()
+    cs_df['Username'] = cs_df['Username'].str.strip().str.lower()
+
+# Comparar os dois DataFrames baseados no 'Hostname' e 'Username'
+if 'Hostname' in uem_df.columns and 'Username' in uem_df.columns and 'Hostname' in cs_df.columns and 'Username' in cs_df.columns:
+    # Criar uma nova coluna no UEM_DF chamada 'Match' com a comparação
+    uem_df['Match'] = uem_df.apply(lambda row: 'Yes' if ((cs_df['Hostname'] == row['Hostname']) & (cs_df['Username'] == row['Username'])).any() else 'No', axis=1)
+
+    # Filtrar apenas as linhas que encontraram correspondência
+    matched_df = uem_df[uem_df['Match'] == 'Yes'][['Last Seen', 'Hostname', 'Username']]
+
+    # Salvar o DataFrame resultante em um novo arquivo CSV
+    matched_df.to_csv(output_path, index=False)
+
+    print("\nComparação realizada com sucesso. Resultado salvo em 'Comparison_Result.csv'.")
+else:
+    print("\nColunas necessárias ('Hostname' e 'Username') não encontradas nos DataFrames.")

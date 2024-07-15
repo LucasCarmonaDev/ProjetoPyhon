@@ -1,0 +1,149 @@
+import textwrap
+
+class Usuario:
+    def __init__(self, cpf, nome, data_nascimento, endereco):
+        self.cpf = cpf
+        self.nome = nome
+        self.data_nascimento = data_nascimento
+        self.endereco = endereco
+
+class Conta:
+    def __init__(self, titular, agencia, numero_conta):
+        self.titular = titular
+        self.agencia = agencia
+        self.numero_conta = numero_conta
+        self.saldo = 0
+        self.extrato = []
+        self.saques_diarios = 0
+    
+    def depositar(self, valor):
+        if valor <= 0:
+            print("Erro: O valor do depósito deve ser maior que zero.")
+            return
+        
+        self.saldo += valor
+        self.extrato.append(f"Depósito: +R${valor:.2f}")
+        print(f"Depósito de R${valor:.2f} realizado com sucesso.")
+
+    def sacar(self, valor, limite_diario_saques, limite_valor_saque):
+        if valor <= 0:
+            print("Erro: O valor do saque deve ser maior que zero.")
+            return
+        
+        if self.saques_diarios >= limite_diario_saques:
+            print("Erro: Limite diário de saques atingido.")
+            return
+        
+        if valor > limite_valor_saque:
+            print(f"Erro: Limite máximo de saque é de R${limite_valor_saque:.2f}.")
+            return
+        
+        if self.saldo < valor:
+            print("Erro: Saldo insuficiente.")
+            return
+        
+        self.saldo -= valor
+        self.extrato.append(f"Saque: -R${valor:.2f}")
+        self.saques_diarios += 1
+        print(f"Saque de R${valor:.2f} realizado com sucesso.")
+
+    def exibir_extrato(self):
+        print(f"Extrato da conta {self.numero_conta}:")
+        for movimento in self.extrato:
+            print(movimento)
+        print(f"Saldo atual: R${self.saldo:.2f}")
+
+class Banco:
+    def __init__(self):
+        self.usuarios = {}
+        self.contas = {}
+
+    def criar_usuario(self, cpf, nome, data_nascimento, endereco):
+        if cpf in self.usuarios:
+            print("Erro: CPF já cadastrado.")
+            return
+        
+        novo_usuario = Usuario(cpf, nome, data_nascimento, endereco)
+        self.usuarios[cpf] = novo_usuario
+        print("Usuário criado com sucesso.")
+
+    def filtrar_usuario(self, cpf):
+        return cpf in self.usuarios
+
+    def criar_conta(self, cpf, agencia, numero_conta):
+        if cpf not in self.usuarios:
+            print("Erro: Usuário não encontrado.")
+            return
+        
+        chave_conta = f"{agencia}-{numero_conta}"
+        if chave_conta in self.contas:
+            print("Erro: Conta já cadastrada.")
+            return
+        
+        novo_conta = Conta(self.usuarios[cpf].nome, agencia, numero_conta)
+        self.contas[chave_conta] = novo_conta
+        print(f"Conta {chave_conta} criada com sucesso para {self.usuarios[cpf].nome}.")
+
+    def listar_contas(self):
+        print("Lista de contas cadastradas:")
+        for chave_conta, conta in self.contas.items():
+            print(f"Agência: {conta.agencia} | Número: {conta.numero_conta} | Titular: {conta.titular}")
+
+# Função principal do menu
+def menu(banco):
+    while True:
+        print("\n--- Menu de Operações ---")
+        menu_text = textwrap.dedent("""
+        1. Depositar
+        2. Sacar
+        3. Extrato
+        4. Criar Nova Conta
+        5. Listar Contas
+        6. Criar Novo Usuário
+        7. Sair
+        """).strip()
+        print(menu_text)
+
+        opcao = input("Escolha uma opção: ")
+
+        if opcao == '1':
+            conta = input("Digite o número da conta: ")
+            valor = float(input("Digite o valor a depositar: "))
+            banco.contas[conta].depositar(valor)
+        
+        elif opcao == '2':
+            conta = input("Digite o número da conta: ")
+            valor = float(input("Digite o valor a sacar: "))
+            banco.contas[conta].sacar(valor, limite_diario_saques=3, limite_valor_saque=1000)
+        
+        elif opcao == '3':
+            conta = input("Digite o número da conta: ")
+            banco.contas[conta].exibir_extrato()
+        
+        elif opcao == '4':
+            cpf = input("Digite o CPF do titular: ")
+            agencia = input("Digite a agência da nova conta: ")
+            numero_conta = input("Digite o número da nova conta: ")
+            banco.criar_conta(cpf, agencia, numero_conta)
+        
+        elif opcao == '5':
+            banco.listar_contas()
+        
+        elif opcao == '6':
+            cpf = input("Digite o CPF do novo usuário: ")
+            nome = input("Digite o nome do novo usuário: ")
+            data_nascimento = input("Digite a data de nascimento (DD/MM/AAAA): ")
+            endereco = input("Digite o endereço do novo usuário: ")
+            banco.criar_usuario(cpf, nome, data_nascimento, endereco)
+        
+        elif opcao == '7':
+            print("Encerrando o programa...")
+            break
+        
+        else:
+            print("Opção inválida. Tente novamente.")
+
+# Execução do programa
+if __name__ == "__main__":
+    banco = Banco()
+    menu(banco)

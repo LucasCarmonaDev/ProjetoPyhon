@@ -1,0 +1,102 @@
+import pandas as pd
+import os
+
+# Função para carregar CSV com tratamento de erros
+def load_csv(file_path):
+    try:
+        print(f"Carregando arquivo: {file_path}")
+        return pd.read_csv(file_path, delimiter=';')
+    except FileNotFoundError:
+        print(f"Arquivo não encontrado: {file_path}")
+        return pd.DataFrame()
+    except pd.errors.ParserError as e:
+        print(f"Erro ao carregar o arquivo {file_path}: {e}")
+        return pd.DataFrame()
+
+# Função para normalizar identificadores
+def normalize_column(df, column):
+    if column in df.columns:
+        df[column] = df[column].str.strip().str.lower()
+    else:
+        print(f"Coluna não encontrada para normalização: {column}")
+    return df
+
+# Função principal para comparar planilhas
+def compare_sheets(file_paths, compare_fields):
+    dataframes = [load_csv(path) for path in file_paths]
+
+    # Verificar se algum DataFrame está vazio
+    if any(df.empty for df in dataframes):
+        print("Erro ao carregar um dos arquivos CSV. Verifique os arquivos e tente novamente.")
+        return
+
+    # Imprimir as colunas presentes em cada DataFrame (para depuração)
+    for i, df in enumerate(dataframes):
+        print(f"Colunas presentes no DataFrame {i + 1}:")
+        print(df.columns.tolist())
+        print()
+
+    # Normalizar os campos de comparação
+    for df in dataframes:
+        for field in compare_fields:
+            df = normalize_column(df, field)
+        print(f"Colunas normalizadas do DataFrame: {df.columns.tolist()}")
+
+    # Verificar se todos os campos de comparação estão presentes
+    missing_columns = [field for field in compare_fields if any(field not in df.columns for df in dataframes)]
+    if missing_columns:
+        print(f"Campos ausentes em pelo menos um dos arquivos: {', '.join(missing_columns)}")
+        return
+
+    # Criar um DataFrame base com os campos de comparação
+    base_df = dataframes[0][compare_fields].drop_duplicates().reset_index(drop=True)
+    print(f"DataFrame base criado com as colunas: {base_df.columns.tolist()}")
+
+    # Adicionar colunas ao DataFrame base para indicar presença em cada planilha
+    sheet_names = [os.path.basename(path) for path in file_paths]
+    for sheet_name in sheet_names:
+        base_df[sheet_name] = 'Não Presente'
+
+    # Preencher as colunas de presença
+    for i, df in enumerate(dataframes):
+        print(f"Comparando com o DataFrame {i + 1} ({sheet_names[i]})")
+        for index, row in base_df.iterrows():
+            if not df[(df[compare_fields] == row[compare_fields]).all(axis=1)].empty:
+                base_df.at[index, sheet_names[i]] = 'Presente'
+
+    # Definir o caminho de saída
+    output_path = input("Digite o caminho para salvar o arquivo de resultado (por exemplo, 'C:\\path\\to\\Comparison_Result.csv'): ")
+    output_dir = os.path.dirname(output_path)
+
+    # Verificar se o diretório de saída existe
+    if not os.path.exists(output_dir):
+        print(f"Diretório de saída não existe: {output_dir}")
+        return
+
+    # Salvar o DataFrame resultante em um novo arquivo CSV
+    base_df.to_csv(output_path, index=False)
+    print(f"\nComparação realizada com sucesso. Resultado salvo em '{output_path}'.")
+
+# Função para obter entradas do usuário
+def main():
+    try:
+        # Input do usuário para o número de arquivos
+        num_files = int(input("Digite o número de planilhas a serem comparadas: "))
+        file_paths = [input(f"Digite o caminho do arquivo {i + 1}: ") for i in range(num_files)]
+
+        # Verificar a existência dos arquivos
+        for path in file_paths:
+            if not os.path.exists(path):
+                print(f"Arquivo não encontrado: {path}")
+                return
+
+        # Input do usuário para os campos de comparação
+        compare_fields = input("Digite os campos a serem comparados, separados por vírgula (por exemplo, 'Hostname,Username'): ").split(',')
+        compare_fields = [field.strip() for field in compare_fields]
+
+        compare_sheets(file_paths, compare_fields)
+    except Exception as e:
+        print(f"Ocorreu um erro inesperado: {e}")
+
+if __name__ == "__main__":
+    main()
